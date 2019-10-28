@@ -1,0 +1,782 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vulnerabilityAssessments_Default_storageContainerPath": {
+      "type": "SecureString"
+    },
+    "serverfarms_sample9_plan_name": {
+      "defaultValue": "sample9-plan",
+      "type": "String"
+    },
+    "components_sample9_appin_name": {
+      "defaultValue": "sample9-appin",
+      "type": "String"
+    },
+    "servers_sql_servergvnfjzj4nd7ok_name": {
+      "defaultValue": "sql-servergvnfjzj4nd7ok",
+      "type": "String"
+    },
+    "virtualNetworks_sample9_vnet_name": {
+      "defaultValue": "sample9-vnet",
+      "type": "String"
+    },
+    "storageAccounts_sample9storage_name": {
+      "defaultValue": "sample9storage",
+      "type": "String"
+    },
+    "networkSecurityGroups_nsg_sample9_webapp_name": {
+      "defaultValue": "nsg-sample9-webapp",
+      "type": "String"
+    },
+    "networkSecurityGroups_nsg_sample9_database_name": {
+      "defaultValue": "nsg-sample9-database",
+      "type": "String"
+    },
+    "actionGroups_Application_20Insights_20Smart_20Detection_name": {
+      "defaultValue": "Application%20Insights%20Smart%20Detection",
+      "type": "String"
+    },
+    "smartdetectoralertrules_failure_anomalies___sample9_appin_name": {
+      "defaultValue": "failure anomalies - sample9-appin",
+      "type": "String"
+    },
+    "sqlServerName": {
+      "defaultValid": "sql-server",
+      "type": "String"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "microsoft.insights/actionGroups",
+      "apiVersion": "2019-03-01",
+      "name": "[parameters('actionGroups_Application_20Insights_20Smart_20Detection_name')]",
+      "location": "Global",
+      "properties": {
+        "groupShortName": "SmartDetect",
+        "enabled": true,
+        "emailReceivers": [],
+        "smsReceivers": [],
+        "webhookReceivers": [],
+        "itsmReceivers": [],
+        "azureAppPushReceivers": [],
+        "automationRunbookReceivers": [],
+        "voiceReceivers": [],
+        "logicAppReceivers": [],
+        "azureFunctionReceivers": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components",
+      "apiVersion": "2015-05-01",
+      "name": "[parameters('components_sample9_appin_name')]",
+      "location": "koreacentral",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "Request_Source": "IbizaWebAppExtensionCreate"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2019-09-01",
+      "name": "[parameters('networkSecurityGroups_nsg_sample9_database_name')]",
+      "location": "koreacentral",
+      "properties": {
+        "securityRules": []
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2019-09-01",
+      "name": "[parameters('networkSecurityGroups_nsg_sample9_webapp_name')]",
+      "location": "koreacentral",
+      "properties": {
+        "securityRules": []
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers",
+      "apiVersion": "2015-05-01-preview",
+      "name": "[parameters('servers_sql_servergvnfjzj4nd7ok_name')]",
+      "location": "koreacentral",
+      "tags": {
+        "displayName": "sql-server"
+      },
+      "kind": "v12.0",
+      "properties": {
+        "administratorLogin": "rapker",
+        "version": "12.0"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2019-04-01",
+      "name": "[parameters('storageAccounts_sample9storage_name')]",
+      "location": "koreacentral",
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "kind": "Storage",
+      "properties": {
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "virtualNetworkRules": [],
+          "ipRules": [],
+          "defaultAction": "Allow"
+        },
+        "supportsHttpsTrafficOnly": false,
+        "encryption": {
+          "services": {
+            "file": {
+              "enabled": true
+            },
+            "blob": {
+              "enabled": true
+            }
+          },
+          "keySource": "Microsoft.Storage"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2016-09-01",
+      "name": "[parameters('serverfarms_sample9_plan_name')]",
+      "location": "Korea Central",
+      "sku": {
+        "name": "S1",
+        "tier": "Standard",
+        "size": "S1",
+        "family": "S",
+        "capacity": 1
+      },
+      "kind": "app",
+      "properties": {
+        "name": "[parameters('serverfarms_sample9_plan_name')]",
+        "perSiteScaling": false,
+        "reserved": false,
+        "targetWorkerCount": 0,
+        "targetWorkerSizeId": 0
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/CreateIndex')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/DbParameterization')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/DefragmentIndex')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/DropIndex')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/ForceLastGoodPlan')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/auditingPolicies",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/Default')]",
+      "location": "Korea Central",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "auditingState": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/auditingSettings",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "retentionDays": 0,
+        "auditActionsAndGroups": [],
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000",
+        "isStorageSecondaryKeyInUse": false,
+        "isAzureMonitorTargetEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2017-10-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB')]",
+      "location": "koreacentral",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "tags": {
+        "displayName": "defaultdb"
+      },
+      "sku": {
+        "name": "Standard",
+        "tier": "Standard",
+        "capacity": 10
+      },
+      "kind": "v12.0,user",
+      "properties": {
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "maxSizeBytes": 1073741824,
+        "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
+        "zoneRedundant": false,
+        "readScale": "Disabled",
+        "readReplicaCount": 0
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/auditingPolicies",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/master/Default')]",
+      "location": "Korea Central",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "auditingState": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/auditingSettings",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/master/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "retentionDays": 0,
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000",
+        "isStorageSecondaryKeyInUse": false,
+        "isAzureMonitorTargetEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/extendedAuditingSettings",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/master/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "retentionDays": 0,
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000",
+        "isStorageSecondaryKeyInUse": false,
+        "isAzureMonitorTargetEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/geoBackupPolicies",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/master/Default')]",
+      "location": "Korea Central",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/securityAlertPolicies",
+      "apiVersion": "2018-06-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/master/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "disabledAlerts": [
+          ""
+        ],
+        "emailAddresses": [
+          ""
+        ],
+        "emailAccountAdmins": false,
+        "retentionDays": 0
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/transparentDataEncryption",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/master/current')]",
+      "location": "Korea Central",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "status": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/vulnerabilityAssessments",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/master/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "recurringScans": {
+          "isEnabled": false,
+          "emailSubscriptionAdmins": true
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/encryptionProtector",
+      "apiVersion": "2015-05-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/current')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "kind": "servicemanaged",
+      "properties": {
+        "serverKeyName": "ServiceManaged",
+        "serverKeyType": "ServiceManaged"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/extendedAuditingSettings",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "retentionDays": 0,
+        "auditActionsAndGroups": [],
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000",
+        "isStorageSecondaryKeyInUse": false,
+        "isAzureMonitorTargetEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/firewallRules",
+      "apiVersion": "2015-05-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/AllowAllWindowsAzureIps')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/keys",
+      "apiVersion": "2015-05-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/ServiceManaged')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "kind": "servicemanaged",
+      "properties": {
+        "serverKeyType": "ServiceManaged"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/securityAlertPolicies",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "disabledAlerts": [
+          ""
+        ],
+        "emailAddresses": [
+          ""
+        ],
+        "emailAccountAdmins": false,
+        "retentionDays": 0
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/vulnerabilityAssessments",
+      "apiVersion": "2018-06-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "recurringScans": {
+          "isEnabled": false,
+          "emailSubscriptionAdmins": true
+        },
+        "storageContainerPath": "[parameters('vulnerabilityAssessments_Default_storageContainerPath')]"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2019-04-01",
+      "name": "[concat(parameters('storageAccounts_sample9storage_name'), '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_sample9storage_name'))]"
+      ],
+      "properties": {
+        "cors": {
+          "corsRules": []
+        },
+        "deleteRetentionPolicy": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "microsoft.alertsmanagement/smartdetectoralertrules",
+      "apiVersion": "2019-06-01",
+      "name": "[parameters('smartdetectoralertrules_failure_anomalies___sample9_appin_name')]",
+      "location": "global",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_sample9_appin_name'))]",
+        "[resourceId('microsoft.insights/actionGroups', parameters('actionGroups_Application_20Insights_20Smart_20Detection_name'))]"
+      ],
+      "properties": {
+        "description": "Failure Anomalies notifies you of an unusual rise in the rate of failed HTTP requests or dependency calls.",
+        "state": "Enabled",
+        "severity": "Sev3",
+        "frequency": "PT1M",
+        "detector": {
+          "id": "FailureAnomaliesDetector"
+        },
+        "scope": [
+          "[resourceId('microsoft.insights/components', parameters('components_sample9_appin_name'))]"
+        ],
+        "actionGroups": {
+          "groupIds": [
+            "[resourceId('microsoft.insights/actionGroups', parameters('actionGroups_Application_20Insights_20Smart_20Detection_name'))]"
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2019-09-01",
+      "name": "[parameters('virtualNetworks_sample9_vnet_name')]",
+      "location": "koreacentral",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_nsg_sample9_webapp_name'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_nsg_sample9_database_name'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "webapp",
+            "properties": {
+              "addressPrefix": "10.0.0.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_nsg_sample9_webapp_name'))]"
+              },
+              "serviceEndpoints": [],
+              "delegations": [
+                {
+                  "name": "delegation",
+                  "properties": {
+                    "serviceName": "Microsoft.Web/serverfarms"
+                  }
+                }
+              ],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          },
+          {
+            "name": "database",
+            "properties": {
+              "addressPrefix": "10.0.1.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_nsg_sample9_database_name'))]"
+              },
+              "serviceEndpoints": [],
+              "delegations": [],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          }
+        ],
+        "virtualNetworkPeerings": [],
+        "enableDdosProtection": false,
+        "enableVmProtection": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2019-09-01",
+      "name": "[concat(parameters('virtualNetworks_sample9_vnet_name'), '/database')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_sample9_vnet_name'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_nsg_sample9_database_name'))]"
+      ],
+      "properties": {
+        "addressPrefix": "10.0.1.0/24",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_nsg_sample9_database_name'))]"
+        },
+        "serviceEndpoints": [],
+        "delegations": [],
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2019-09-01",
+      "name": "[concat(parameters('virtualNetworks_sample9_vnet_name'), '/webapp')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_sample9_vnet_name'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_nsg_sample9_webapp_name'))]"
+      ],
+      "properties": {
+        "addressPrefix": "10.0.0.0/24",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_nsg_sample9_webapp_name'))]"
+        },
+        "serviceEndpoints": [],
+        "delegations": [
+          {
+            "name": "delegation",
+            "properties": {
+              "serviceName": "Microsoft.Web/serverfarms"
+            }
+          }
+        ],
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/CreateIndex')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/DbParameterization')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/DefragmentIndex')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/DropIndex')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/advisors",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/ForceLastGoodPlan')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/auditingPolicies",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/Default')]",
+      "location": "Korea Central",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "auditingState": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/auditingSettings",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "retentionDays": 0,
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000",
+        "isStorageSecondaryKeyInUse": false,
+        "isAzureMonitorTargetEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies",
+      "apiVersion": "2017-10-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "retentionDays": 7
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/extendedAuditingSettings",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "retentionDays": 0,
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000",
+        "isStorageSecondaryKeyInUse": false,
+        "isAzureMonitorTargetEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/geoBackupPolicies",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/Default')]",
+      "location": "Korea Central",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/securityAlertPolicies",
+      "apiVersion": "2018-06-01-preview",
+      "name": "[concat(parameters('servers_sql_servergvnfjzj4nd7ok_name'), '/defaultDB/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "state": "Disabled",
+        "disabledAlerts": [
+          ""
+        ],
+        "emailAddresses": [
+          ""
+        ],
+        "emailAccountAdmins": false,
+        "retentionDays": 0
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/transparentDataEncryption",
+      "apiVersion": "2014-04-01",
+      "name": "[concat(parameters('sqlServerName'), '/defaultDB/current')]",
+      "location": "Korea Central",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('sqlServerName'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('servers_sql_servergvnfjzj4nd7ok_name'))]"
+      ],
+      "properties": {
+        "status": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases/vulnerabilityAssessments",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(parameters('sqlServerName'), '/defaultDB/Default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_sql_servergvnfjzj4nd7ok_name'), 'defaultDB')]",
+        "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
+      ],
+      "properties": {
+        "recurringScans": {
+          "isEnabled": false,
+          "emailSubscriptionAdmins": true
+        }
+      }
+    }
+  ]
+}
