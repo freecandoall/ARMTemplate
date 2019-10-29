@@ -289,7 +289,7 @@
         {
           "type": "Microsoft.Web/sites/virtualNetworkConnections",
           "apiVersion": "2016-08-01",
-          "name": "[concat(variables('VnetName'), '/webapp')]",
+          "name": "[concat(parameters('Name'), '/webapp')]",
           "location": "Korea Central",
           "dependsOn": [
             "[resourceId('Microsoft.Web/sites', parameters('Name'))]",
@@ -309,8 +309,7 @@
       "name": "[concat(parameters('Name'), '/web')]",
       "location": "[resourceGroup().location]",
       "dependsOn": [
-        "[resourceId('Microsoft.Web/sites', parameters('Name'))]",
-        "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('VnetName'), 'webapp')]"
+        "[resourceId('Microsoft.Web/sites', parameters('Name'))]"
       ],
       "properties": {
         "vnetName": "[variables('VnetConnectName')]"
