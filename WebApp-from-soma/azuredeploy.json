@@ -28,6 +28,7 @@
     },
     "NodeCount": {
       "type": "Int",
+      "defaultValue": 1,
       "metadata": {
         "description": "노드 수량을 입력하세요"
       }
