@@ -34,7 +34,7 @@
       }
     },
     "MySQL_Name": {
-      "defaultValue": "mysqlservername",
+      "defaultValue": "mysqlserver",
       "type": "String"
     },
     "mysqlServerAdminLogin": {
