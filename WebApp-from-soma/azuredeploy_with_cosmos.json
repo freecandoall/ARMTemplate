@@ -1,0 +1,255 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "Name": {
+      "type": "String",
+      "metadata": {
+        "description": "앱 서비스명을 입력하세요"
+      }
+    },
+    "Os": {
+      "type": "String",
+      "defaultValue": "W",
+      "allowedValues": [
+        "W",
+        "L"
+      ],
+      "metadata": {
+        "description": "Windows:W, Linux:L"
+      }
+    },
+    "Sku": {
+      "type": "String",
+      "defaultValue": "S1",
+      "metadata": {
+        "description": "App Service plan - Sku(S1,S2...P2v2,P3v2)"
+      }
+    },
+    "NodeCount": {
+      "type": "Int",
+      "metadata": {
+        "description": "노드 수량을 입력하세요"
+      }
+    }
+  },
+  "variables": {
+    "VnetName": "[concat(parameters('Name'),'-vnet')]",
+    "NsgWebApp": "[concat('nsg-', parameters('Name'),'-webapp')]",
+    "NsgDatabase": "[concat('nsg-', parameters('Name'),'-database')]",
+    "PlanName": "[concat(parameters('Name'),'-plan')]",
+    "ApplicationInsightsName": "[concat(parameters('Name'),'-appin')]",
+    "storageAccountName": "[concat(replace(parameters('Name'),'-',''),'storage')]",
+    "VnetConnectName": "[concat(guid(subscription().subscriptionId), '_webapp')]",
+    "IsLinux": "[if(equals(parameters('Os'),'L'),'true','false')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2019-08-01",
+      "name": "[variables('NsgWebApp')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": []
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2019-08-01",
+      "name": "[variables('NsgDatabase')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": []
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2019-08-01",
+      "name": "[variables('VnetName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgWebApp'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgDatabase'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "webapp",
+            "properties": {
+              "addressPrefix": "10.0.0.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgWebApp'))]"
+              },
+              "serviceEndpoints": [],
+              "delegations": [
+                {
+                  "name": "delegation",
+                  "properties": {
+                    "serviceName": "Microsoft.Web/serverfarms"
+                  }
+                }
+              ],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          },
+          {
+            "name": "database",
+            "properties": {
+              "addressPrefix": "10.0.1.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgDatabase'))]"
+              },
+              "serviceEndpoints": [],
+              "delegations": [],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          }
+        ],
+        "virtualNetworkPeerings": [],
+        "enableDdosProtection": false,
+        "enableVmProtection": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2019-08-01",
+      "name": "[concat(variables('VnetName'), '/webapp')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('VnetName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgWebApp'))]"
+      ],
+      "properties": {
+        "addressPrefix": "10.0.0.0/24",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgWebApp'))]"
+        },
+        "serviceEndpoints": [],
+        "delegations": [
+          {
+            "name": "delegation",
+            "properties": {
+              "serviceName": "Microsoft.Web/serverfarms"
+            }
+          }
+        ],
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2019-08-01",
+      "name": "[concat(variables('VnetName'), '/database')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('VnetName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgDatabase'))]"
+      ],
+      "properties": {
+        "addressPrefix": "10.0.1.0/24",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgDatabase'))]"
+        },
+        "serviceEndpoints": [],
+        "delegations": [],
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      }
+    },
+    {
+      "type": "microsoft.insights/components",
+      "apiVersion": "2015-05-01",
+      "name": "[variables('ApplicationInsightsName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "Request_Source": "IbizaWebAppExtensionCreate"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('storageAccountName')]",
+      "apiVersion": "2018-02-01",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2016-09-01",
+      "name": "[variables('PlanName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "[parameters('Sku')]",
+        "capacity": "[parameters('NodeCount')]"
+      },
+      "kind": "app",
+      "properties": {
+        "reserved": "[variables('IsLinux')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2016-08-01",
+      "name": "[parameters('Name')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('PlanName'))]"
+      ],
+      "kind": "app",
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('PlanName'))]"
+      },
+      "resources": [
+        {
+          "type": "config",
+          "apiVersion": "2018-02-01",
+          "name": "virtualNetwork",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('Name'))]"
+          ],
+          "properties": {
+            "subnetResourceId": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('VnetName')),'/subnets/webapp')]",
+            "swiftSupported": true
+          }
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2016-08-01",
+      "name": "[concat(parameters('Name'), '/web')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('Name'))]"
+      ],
+      "properties": {
+        "vnetName": "[variables('VnetConnectName')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/hostNameBindings",
+      "apiVersion": "2016-08-01",
+      "name": "[concat(parameters('Name'), '/', parameters('Name'), '.azurewebsites.net')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('Name'))]"
+      ],
+      "properties": {
+        "siteName": "[parameters('Name')]",
+        "hostNameType": "Verified"
+      }
+    }
+  ]
+}

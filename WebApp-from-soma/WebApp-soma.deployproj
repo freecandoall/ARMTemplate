@@ -26,6 +26,7 @@
     <Content Include="azuredeploy.json" />
     <Content Include="azuredeploy.parameters.json" />
     <None Include="azuredeploy_try.json" />
+    <None Include="azuredeploy_with_cosmos.json" />
     <None Include="azuredeploy_with_mysql.json" />
     <None Include="azuredeploy_with_sql.json" />
     <None Include="Deployment.targets">
