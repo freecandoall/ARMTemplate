@@ -214,15 +214,28 @@
       "resources": []
     },
     {
-      "type": "Microsoft.Web/sites/virtualNetworkConnections",
-      "apiVersion": "2018-11-01",
-      "name": "[concat(parameters('Name'), '/test')]",
-      "location": "[resourceGroup().location]",
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2016-08-01",
+      "name": "[concat(parameters('Name'), '/web')]",
+      "location": "Korea Central",
       "dependsOn": [
-        "[resourceId('Microsoft.Web/sites', parameters('Name'))]"
+        "[concat('Microsoft.Web/sites/', parameters('Name'))]"
       ],
       "properties": {
-        "vnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks', variables('VnetName'))]",
+        "vnetName": "conn_webapp"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/virtualNetworkConnections",
+      "apiVersion": "2016-08-01",
+      "name": "[concat(parameters('Name'), '/conn_webapp')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('Name'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('VnetName'), 'webapp')]"
+      ],
+      "properties": {
+        "vnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('VnetName'), 'webapp')]",
         "resyncRequired": false,
         "isSwift": false
 
