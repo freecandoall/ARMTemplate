@@ -211,21 +211,22 @@
       "properties": {
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('PlanName'))]"
       },
-      "resources": [
-        {
-          "type": "config",
-          "apiVersion": "2018-02-01",
-          "name": "virtualNetwork",
-          "location": "[resourceGroup().location]",
-          "dependsOn": [
-            "[concat('Microsoft.Web/sites/', parameters('Name'))]"
-          ],
-          "properties": {
-            "subnetResourceId": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('VnetName')),'/subnets/webapp')]",
-            "swiftSupported": true
-          }
-        }
-      ]
+      "resources": []
+    },
+    {
+      "type": "Microsoft.Web/sites/virtualNetworkConnections",
+      "apiVersion": "2018-11-01",
+      "name": "[concat(parameters('Name'), '/test')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('Name'))]"
+      ],
+      "properties": {
+        "vnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks', variables('VnetName'))]",
+        "resyncRequired": false,
+        "isSwift": false
+
+      }
     },
     {
       "type": "Microsoft.Web/sites/hostNameBindings",
