@@ -218,7 +218,7 @@
           "name": "virtualNetwork",
           "location": "[resourceGroup().location]",
           "dependsOn": [
-            "[resourceId('Microsoft.Web/sites', parameters('Name'))]"
+            "[concat('Microsoft.Web/sites/', parameters('Name'))]"
           ],
           "properties": {
             "subnetResourceId": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('VnetName')),'/subnets/webapp')]",
@@ -226,18 +226,6 @@
           }
         }
       ]
-    },
-    {
-      "type": "Microsoft.Web/sites/config",
-      "apiVersion": "2016-08-01",
-      "name": "[concat(parameters('Name'), '/web')]",
-      "location": "[resourceGroup().location]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Web/sites', parameters('Name'))]"
-      ],
-      "properties": {
-        "vnetName": "[variables('VnetConnectName')]"
-      }
     },
     {
       "type": "Microsoft.Web/sites/hostNameBindings",
