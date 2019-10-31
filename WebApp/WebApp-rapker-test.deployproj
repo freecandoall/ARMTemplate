@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>e9be730b-7524-424c-a9a8-09a76c2ae1be</ProjectGuid>
+    <ProjectGuid>bc325548-c96f-4421-a6f1-7161b2fbb24e</ProjectGuid>
   </PropertyGroup>
   <PropertyGroup>
     <PrepareForBuildDependsOn>
@@ -23,20 +23,12 @@
   <Import Condition=" Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Deployment\1.1\DeploymentProject.targets') " Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Deployment\1.1\DeploymentProject.targets" />
   <!-- vertag<:>end -->
   <ItemGroup>
-    <Content Include="azuredeploy.json" />
-    <Content Include="azuredeploy.parameters.json" />
-    <None Include="azuredeploy_try.json" />
-    <None Include="azuredeploy_with_cosmos.json" />
-    <None Include="azuredeploy_with_mysql.json" />
-    <None Include="azuredeploy_with_redis.json" />
-    <None Include="azuredeploy_with_sql.json" />
     <None Include="Deployment.targets">
       <Visible>False</Visible>
     </None>
     <Content Include="Deploy-AzureResourceGroup.ps1" />
-    <None Include="test-before.json" />
-    <None Include="test-After.json" />
-    <None Include="windowVM_generated.json" />
+    <Content Include="azuredeploy.json" />
+    <Content Include="azuredeploy.parameters.json" />
   </ItemGroup>
   <Target Name="GetReferenceAssemblyPaths" />
 </Project>

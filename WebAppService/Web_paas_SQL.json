@@ -1,96 +1,61 @@
-Ôªø{
+{
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
     "Name": {
       "type": "String",
       "metadata": {
-        "description": "Ïï± ÏÑúÎπÑÏä§Î™ÖÏùÑ ÏûÖÎ†•ÌïòÏÑ∏Ïöî"
+        "description": "æ€ º≠∫ÒΩ∫∏Ì¿ª ¿‘∑¬«œººø‰"
       }
     },
-    "Os": {
-      "type": "String",
-      "defaultValue": "W",
-      "allowedValues": [
-        "W",
-        "L"
-      ],
+    "SqlServerAdminLogin": {
+      "type": "string",
+      "minLength": 4,
       "metadata": {
-        "description": "Windows:W, Linux:L"
+        "description": "DB æ∆¿Ãµ∏¶ ¿‘∑¬«œººø‰"
       }
     },
-    "Sku": {
-      "type": "String",
-      "defaultValue": "S1",
+    "SqlServerAdminLoginPassword": {
+      "type": "securestring",
+      "minLength": 8,
       "metadata": {
-        "description": "App Service plan - Sku(S1,S2...P2v2,P3v2)"
-      }
-    },
-    "NodeCount": {
-      "type": "Int",
-      "defaultValue": 1,
-      "metadata": {
-        "description": "ÎÖ∏Îìú ÏàòÎüâÏùÑ ÏûÖÎ†•ÌïòÏÑ∏Ïöî"
-      }
-    },
-    "sqlServerName": {
-      "type": "String",
-      "defaultValue": "sqlserver"
-    },
-    "sqlServerAdminLogin": {
-      "type": "string",
-      "minLength": 1
-    },
-    "sqlServerAdminLoginPassword": {
-      "type": "securestring"
-    },
-    "databaseName": {
-      "type": "string",
-      "minLength": 1
-    },
-    "databaseCollation": {
-      "type": "string",
-      "minLength": 1,
-      "defaultValue": "SQL_Latin1_General_CP1_CI_AS"
-    },
-    "databaseEdition": {
-      "type": "string",
-      "defaultValue": "Basic",
-      "allowedValues": [
-        "Basic",
-        "Standard",
-        "Premium"
-      ]
-    },
-    "databaseRequestedServiceObjectiveName": {
-      "type": "string",
-      "defaultValue": "Basic",
-      "allowedValues": [
-        "Basic",
-        "S0",
-        "S1",
-        "S2",
-        "P1",
-        "P2",
-        "P3"
-      ],
-      "metadata": {
-        "description": "Describes the performance level for Edition"
+        "description": "DB ∆–Ω∫øˆµÂ∏¶ ¿‘∑¬«œººø‰"
       }
     }
   },
   "variables": {
+    "AppServicePlanSku": "S1",
+    "AppServicePlanNodeCount": "1",
     "VnetName": "[concat(parameters('Name'),'-vnet')]",
     "NsgWebApp": "[concat('nsg-', parameters('Name'),'-webapp')]",
     "NsgDatabase": "[concat('nsg-', parameters('Name'),'-database')]",
     "PlanName": "[concat(parameters('Name'),'-plan')]",
     "ApplicationInsightsName": "[concat(parameters('Name'),'-appin')]",
     "storageAccountName": "[concat(replace(parameters('Name'),'-',''),'storage')]",
-    "VnetConnectName": "[concat(guid(subscription().subscriptionId), '_webapp')]",
-    "IsLinux": "[if(equals(parameters('Os'),'L'),'true','false')]",
-    "sql-serverName": "[concat('sql-server', uniqueString(resourceGroup().id))]"
+    "IsLinux": "false",
+    "SqlServerName": "[concat('sql-', parameters('Name'))]",
+    "DatabaseName": "DB_DATA",
+    "DatabaseCollation": "Korean_Wansung_CI_AS",
+    "DatabaseEdition": "Standard",
+    "databaseRequestedServiceObjectiveName": "S1",
+    "MySqlServerName": "[concat('mysql-', parameters('Name'))]",
+    "RedisServerName": "[concat('redis-', parameters('Name'))]"
   },
   "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2016-09-01",
+      "name": "[variables('PlanName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "[variables('AppServicePlanSku')]",
+        "capacity": "[variables('AppServicePlanNodeCount')]"
+      },
+      "kind": "app",
+      "properties": {
+        "reserved": "[variables('IsLinux')]"
+      }
+    },
     {
       "type": "Microsoft.Web/sites",
       "apiVersion": "2016-08-01",
@@ -117,66 +82,6 @@
         "siteName": "[parameters('Name')]",
         "hostNameType": "Verified"
       }
-    },
-    {
-      "name": "[variables('sql-serverName')]",
-      "type": "Microsoft.Sql/servers",
-      "location": "[resourceGroup().location]",
-      "apiVersion": "2014-04-01-preview",
-      "dependsOn": [],
-      "tags": {
-        "displayName": "sql-server"
-      },
-      "properties": {
-        "administratorLogin": "[parameters('sqlServerAdminLogin')]",
-        "administratorLoginPassword": "[parameters('sqlServerAdminLoginPassword')]"
-      },
-      "resources": [
-        {
-          "name": "AllowAllWindowsAzureIps",
-          "type": "firewallrules",
-          "location": "[resourceGroup().location]",
-          "apiVersion": "2014-04-01-preview",
-          "dependsOn": [
-            "[resourceId('Microsoft.Sql/servers', variables('sql-serverName'))]"
-          ],
-          "properties": {
-            "startIpAddress": "0.0.0.0",
-            "endIpAddress": "0.0.0.0"
-          }
-        },
-        {
-          "name": "[parameters('databaseName')]",
-          "type": "databases",
-          "location": "[resourceGroup().location]",
-          "apiVersion": "2014-04-01-preview",
-          "dependsOn": [
-            "[resourceId('Microsoft.Sql/servers', variables('sql-serverName'))]"
-          ],
-          "tags": {
-            "displayName": "databaseName"
-          },
-          "properties": {
-            "collation": "[parameters('databaseCollation')]",
-            "edition": "[parameters('databaseEdition')]",
-            "maxSizeBytes": "1073741824",
-            "requestedServiceObjectiveName": "[parameters('databaseRequestedServiceObjectiveName')]"
-          }
-        },
-        {
-          "type": "Microsoft.Sql/servers/virtualNetworkRules",
-          "apiVersion": "2015-05-01-preview",
-          "name": "[concat(variables('sql-serverName'), '/conn-WebApp')]",
-          "dependsOn": [
-            "[resourceId('Microsoft.Sql/servers', variables('sql-serverName'))]",
-            "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('VnetName'), 'database')]"
-          ],
-          "properties": {
-            "virtualNetworkSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('VnetName'), 'database')]",
-            "ignoreMissingVnetServiceEndpoint": false
-          }
-        }
-      ]
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
@@ -239,14 +144,7 @@
               "networkSecurityGroup": {
                 "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgDatabase'))]"
               },
-              "serviceEndpoints": [
-                {
-                  "service": "Microsoft.Sql",
-                  "locations": [
-                    "koreacentral"
-                  ]
-                }
-              ],
+              "serviceEndpoints": [],
               "delegations": [],
               "privateEndpointNetworkPolicies": "Enabled",
               "privateLinkServiceNetworkPolicies": "Enabled"
@@ -290,22 +188,14 @@
       "name": "[concat(variables('VnetName'), '/database')]",
       "dependsOn": [
         "[resourceId('Microsoft.Network/virtualNetworks', variables('VnetName'))]",
-        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgDatabase'))]",
-        "[resourceId('Microsoft.Sql/servers', variables('sql-serverName'))]"
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgDatabase'))]"
       ],
       "properties": {
         "addressPrefix": "10.0.1.0/24",
         "networkSecurityGroup": {
           "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NsgDatabase'))]"
         },
-        "serviceEndpoints": [
-          {
-            "service": "Microsoft.Sql",
-            "locations": [
-              "koreacentral"
-            ]
-          }
-        ],
+        "serviceEndpoints": [],
         "delegations": [],
         "privateEndpointNetworkPolicies": "Enabled",
         "privateLinkServiceNetworkPolicies": "Enabled"
@@ -332,20 +222,6 @@
       },
       "kind": "Storage",
       "properties": {}
-    },
-    {
-      "type": "Microsoft.Web/serverfarms",
-      "apiVersion": "2016-09-01",
-      "name": "[variables('PlanName')]",
-      "location": "[resourceGroup().location]",
-      "sku": {
-        "name": "[parameters('Sku')]",
-        "capacity": "[parameters('NodeCount')]"
-      },
-      "kind": "app",
-      "properties": {
-        "reserved": "[variables('IsLinux')]"
-      }
     },
     {
       "type": "Microsoft.Web/sites/config",
