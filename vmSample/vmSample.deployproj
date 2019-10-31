@@ -27,12 +27,9 @@
       <Visible>False</Visible>
     </None>
     <Content Include="Deploy-AzureResourceGroup.ps1" />
-    <Content Include="WindowsVirtualMachine.json" />
-    <Content Include="WindowsVirtualMachine.parameters.json" />
-    <None Include="vmWindow_original.json" />
+    <Content Include="windowVM.parameters.json" />
     <None Include="windowVM.json" />
-    <None Include="windowVM_generated.json" />
-    <None Include="Window_gerated_original.json" />
+    <None Include="windowVM_with_sql.json" />
   </ItemGroup>
   <Target Name="GetReferenceAssemblyPaths" />
 </Project>
