@@ -36,7 +36,6 @@
     <Content Include="Deploy-AzureResourceGroup.ps1" />
     <None Include="test-before.json" />
     <None Include="test-After.json" />
-    <None Include="windowVM_generated.json" />
   </ItemGroup>
   <Target Name="GetReferenceAssemblyPaths" />
 </Project>
