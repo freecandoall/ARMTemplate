@@ -447,7 +447,8 @@
               "name": "[concat(parameters('Name'), '/virtualNetwork')]",
               "location": "[parameters('Location')]",
               "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', parameters('Name'))]"
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', parameters('Name'))]",
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'))]"
               ],
               "properties": {
                 "subnetResourceId": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]",
@@ -456,16 +457,18 @@
             },
             {
               "type": "Microsoft.Web/sites/config",
-              "apiVersion": "2016-08-01",
+              "apiVersion": "2019-08-01",
               "name": "[concat(variables('FuncName'), '/web')]",
               "location": "[parameters('Location')]",
               "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', variables('FuncName'))]"
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', variables('FuncName'))]",
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'))]"
               ],
               "properties": {
                 "subnetResourceId": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]",
                 "swiftSupported": true,
-                "vnetName": "[variables('VNetName')]"
+                "vnetName": "[variables('VNetName')]",
+                "managedPipelineMode": "Integrated"
               }
             }
             /*,
