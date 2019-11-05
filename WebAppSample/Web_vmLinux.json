@@ -1,12 +1,9 @@
-﻿{
+{
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
     "Name": {
-      "type": "String",
-      "metadata": {
-        "description": "앱 서비스명을 입력하세요"
-      }
+      "type": "String"
     },
     "Location": {
       "type": "String"
@@ -20,31 +17,24 @@
   },
   "variables": {
     "SubscriptionID": "[subscription().subscriptionID]",
-    "ResourceGroupName" : "[concat('rg', parameters('Name'))]",
+    "ResourceGroupName": "[concat('rg-',parameters('Name'))]",
     "ResourceIdPrefix": "[concat('/subscriptions/', variables('SubscriptionID'), '/resourceGroups/', variables('resourceGroupName'), '/providers/')]",
-    "ResourceGroupID" : "[concat(variables('ResourceIdPrefix'), variables('ResourceGroupName'))]",
-    "vmName": "[concat(parameters('Name'),'-vm')]",
     "AppServicePlanSku": "S1",
     "AppServicePlanNodeCount": "1",
     "PlanName": "[concat(parameters('Name'),'-plan')]",
-    "ApplicationInsightsName": "[concat(parameters('Name'),'-appin')]",
-    "IsLinux": "true",
-
-    "VNetName": "[concat(parameters('Name'),'-vnet')]",
-    "NsgWebApp": "[concat('nsg-', parameters('Name'),'-webapp')]",
-    "NsgDatabase": "[concat('nsg-', parameters('Name'),'-database')]",
-    "NsgVMName": "[concat('nsg-', parameters('Name'), '-vm')]",
-
+    "FuncName": "[concat(parameters('Name'),'func')]",
     "storageAccountName": "[concat(replace(parameters('Name'),'-',''),'storage')]",
-
-    "AVSetName": "[concat('avset-', parameters('Name'))]",
-    "NicName": "[concat('nic-', parameters('Name'))]",
-    "PipName": "[concat('pip-', parameters('Name'))]",
-
-
-    "schduleName": "[concat('sch-', parameters('Name'))]",
-    "osDisk": "[concat('osd-', parameters('Name'), '-', uniqueString(variables('ResourceGroupID')))]",
-    "dataDisk": "[concat('dsk-', parameters('Name'), '-', uniqueString(variables('ResourceGroupID')))]"
+    "ApplicationInsightsName": "[concat(parameters('Name'),'-appin')]",
+    "VNetName": "[concat('vnet-', parameters('Name'))]",
+    "NsgWebApp": "[concat('nsg-', parameters('Name'),'-webapp')]",
+    "NsgDatabase": "[concat('nsg-', parameters('Name'), '-database')]",
+    "AVSetDatabase": "[concat('avset-', parameters('Name'), '-database')]",
+    "VmName": "[concat('vm-',parameters('Name'))]",
+    "NicName": "[concat(variables('vmName'),'-nic')]",
+    "PipName": "[concat(variables('vmName'),'-pip')]",
+    "OsDisk": "[concat(variables('vmName'),'-os-disk')]",
+    "DataDisk": "[concat(variables('vmName'),'-data-disk-01')]",
+    "IsLinux": "true"
   },
   "resources": [
     {
@@ -99,6 +89,20 @@
               "resources": []
             },
             {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2016-08-01",
+              "name": "[variables('FuncName')]",
+              "location": "[parameters('Location')]",
+              "dependsOn": [
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/serverfarms/', variables('PlanName'))]"
+              ],
+              "kind": "functionapp",
+              "properties": {
+                "serverFarmId": "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/serverfarms/', variables('PlanName'))]"
+              },
+              "resources": []
+            },
+            {
               "type": "Microsoft.Web/sites/hostNameBindings",
               "apiVersion": "2016-08-01",
               "name": "[concat(parameters('Name'), '/', parameters('Name'), '.azurewebsites.net')]",
@@ -109,6 +113,41 @@
               "properties": {
                 "siteName": "[parameters('Name')]",
                 "hostNameType": "Verified"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2016-08-01",
+              "name": "[concat(variables('FuncName'), '/', variables('FuncName'), '.azurewebsites.net')]",
+              "location": "[parameters('Location')]",
+              "dependsOn": [
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', variables('FuncName'))]"
+              ],
+              "properties": {
+                "siteName": "[variables('FuncName')]",
+                "hostNameType": "Verified"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "name": "[variables('storageAccountName')]",
+              "apiVersion": "2018-02-01",
+              "location": "[parameters('Location')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "Storage",
+              "properties": {}
+            },
+            {
+              "type": "microsoft.insights/components",
+              "apiVersion": "2015-05-01",
+              "name": "[variables('ApplicationInsightsName')]",
+              "location": "[parameters('Location')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "Request_Source": "IbizaWebAppExtensionCreate"
               }
             },
             {
@@ -126,22 +165,48 @@
               "name": "[variables('NsgDatabase')]",
               "location": "[parameters('Location')]",
               "properties": {
-                "securityRules": []
-              }
-            },
-            {
-              "type": "Microsoft.Network/networkSecurityGroups",
-              "apiVersion": "2019-08-01",
-              "name": "[variables('NsgVMName')]",
-              "location": "[parameters('Location')]",
-              "properties": {
-                "securityRules": []
+                "securityRules": [
+                  {
+                    "name": "Allow-Ssh",
+                    "properties": {
+                      "protocol": "TCP",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "22",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*",
+                      "access": "Allow",
+                      "priority": 100,
+                      "direction": "Inbound",
+                      "sourcePortRanges": [],
+                      "destinationPortRanges": [],
+                      "sourceAddressPrefixes": [],
+                      "destinationAddressPrefixes": []
+                    }
+                  },
+                  {
+                    "name": "Allow-MySql",
+                    "properties": {
+                      "protocol": "TCP",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3306",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*",
+                      "access": "Allow",
+                      "priority": 200,
+                      "direction": "Inbound",
+                      "sourcePortRanges": [],
+                      "destinationPortRanges": [],
+                      "sourceAddressPrefixes": [],
+                      "destinationAddressPrefixes": []
+                    }
+                  }
+                ]
               }
             },
             {
               "type": "Microsoft.Network/virtualNetworks",
               "apiVersion": "2019-08-01",
-              "name": "[variables('VNetName')]",
+              "name": "[variables('VnetName')]",
               "location": "[parameters('Location')]",
               "dependsOn": [
                 "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', variables('NsgWebApp'))]",
@@ -186,18 +251,6 @@
                       "privateEndpointNetworkPolicies": "Enabled",
                       "privateLinkServiceNetworkPolicies": "Enabled"
                     }
-                  },
-                  {
-                    "name": "vm",
-                    "properties": {
-                      "addressPrefix": "10.0.2.0/24",
-                      "networkSecurityGroup": {
-                        "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', variables('NsgVMName'))]"
-                      },
-                      "delegations": [],
-                      "privateEndpointNetworkPolicies": "Enabled",
-                      "privateLinkServiceNetworkPolicies": "Enabled"
-                    }
                   }
                 ],
                 "virtualNetworkPeerings": [],
@@ -208,9 +261,9 @@
             {
               "type": "Microsoft.Network/virtualNetworks/subnets",
               "apiVersion": "2019-08-01",
-              "name": "[concat(variables('VNetName'), '/webapp')]",
+              "name": "[concat(variables('VnetName'), '/webapp')]",
               "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'))]",
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VnetName'))]",
                 "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', variables('NsgWebApp'))]"
               ],
               "properties": {
@@ -234,9 +287,9 @@
             {
               "type": "Microsoft.Network/virtualNetworks/subnets",
               "apiVersion": "2019-08-01",
-              "name": "[concat(variables('VNetName'), '/database')]",
+              "name": "[concat(variables('VnetName'), '/database')]",
               "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'))]",
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VnetName'))]",
                 "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', variables('NsgDatabase'))]"
               ],
               "properties": {
@@ -251,35 +304,6 @@
               }
             },
             {
-              "type": "Microsoft.Network/virtualNetworks/subnets",
-              "apiVersion": "2019-09-01",
-              "name": "[concat(variables('VNetName'), '/vm')]",
-              "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'))]"
-              ],
-              "properties": {
-                "addressPrefix": "10.0.2.0/24",
-                "networkSecurityGroup": {
-                  "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', variables('NsgVMName'))]"
-                },
-                "serviceEndpoints": [],
-                "delegations": [],
-                "privateEndpointNetworkPolicies": "Enabled",
-                "privateLinkServiceNetworkPolicies": "Enabled"
-              }
-            },
-            {
-              "type": "microsoft.insights/components",
-              "apiVersion": "2015-05-01",
-              "name": "[variables('ApplicationInsightsName')]",
-              "location": "[parameters('Location')]",
-              "kind": "web",
-              "properties": {
-                "Application_Type": "web",
-                "Request_Source": "IbizaWebAppExtensionCreate"
-              }
-            },
-            {
               "type": "Microsoft.Network/publicIPAddresses",
               "apiVersion": "2019-09-01",
               "name": "[variables('PipName')]",
@@ -288,48 +312,16 @@
                 "name": "Basic"
               },
               "properties": {
-                "ipAddress": "52.141.21.199",
                 "publicIPAddressVersion": "IPv4",
-                "publicIPAllocationMethod": "Dynamic",
+                "publicIPAllocationMethod": "static",
                 "idleTimeoutInMinutes": 4,
                 "ipTags": []
               }
             },
             {
-              "type": "Microsoft.Storage/storageAccounts",
-              "apiVersion": "2019-04-01",
-              "name": "[variables('storageAccountName')]",
-              "location": "[parameters('Location')]",
-              "sku": {
-                "name": "Standard_LRS",
-                "tier": "Standard"
-              },
-              "kind": "Storage",
-              "properties": {
-                "networkAcls": {
-                  "bypass": "AzureServices",
-                  "virtualNetworkRules": [],
-                  "ipRules": [],
-                  "defaultAction": "Allow"
-                },
-                "supportsHttpsTrafficOnly": true,
-                "encryption": {
-                  "services": {
-                    "file": {
-                      "enabled": true
-                    },
-                    "blob": {
-                      "enabled": true
-                    }
-                  },
-                  "keySource": "Microsoft.Storage"
-                }
-              }
-            },
-            {
               "type": "Microsoft.Compute/availabilitySets",
               "apiVersion": "2019-03-01",
-              "name": "[variables('AVSetName')]",
+              "name": "[variables('AVSetDatabase')]",
               "location": "[parameters('Location')]",
               "dependsOn": [],
               "sku": {
@@ -340,52 +332,60 @@
                 "platformFaultDomainCount": 2,
                 "virtualMachines": [
                   {
-                    "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Compute/virtualMachines/', variables('vmName'))]"
+                    "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Compute/virtualMachines/', variables('VmName'))]"
                   }
                 ]
               }
             },
             {
-              "type": "Microsoft.Storage/storageAccounts/blobServices",
-              "apiVersion": "2019-04-01",
-              "name": "[concat(variables('storageAccountName'), '/default')]",
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2019-09-01",
+              "name": "[variables('NicName')]",
+              "location": "[parameters('Location')]",
               "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]"
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/publicIPAddresses/', variables('PipName'))]",
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'), '/subnets/database')]"
               ],
               "properties": {
-                "cors": {
-                  "corsRules": []
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "privateIPAddress": "10.0.1.4",
+                      "privateIPAllocationMethod": "static",
+                      "publicIPAddress": {
+                        "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/publicIPAddresses/', variables('PipName'))]"
+                      },
+                      "subnet": {
+                        "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'), '/subnets/database')]"
+                      },
+                      "primary": true,
+                      "privateIPAddressVersion": "IPv4"
+                    }
+                  }
+                ],
+                "dnsSettings": {
+                  "dnsServers": []
                 },
-                "deleteRetentionPolicy": {
-                  "enabled": false
+                "enableAcceleratedNetworking": true,
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                  "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', variables('NsgDatabase'))]"
                 }
-              }
-            },
-            {
-              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-              "apiVersion": "2019-04-01",
-              "name": "[concat(variables('storageAccountName'), '/default/bootdiagnostics-vm-c57b307e-99c7-4441-8e6a-4251b0d2d730')]",
-              "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Storage/storageAccounts/', variables('storageAccountName'), '/blobServices/default')]",
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]"
-              ],
-              "properties": {
-                "publicAccess": "None"
               }
             },
             {
               "type": "Microsoft.Compute/virtualMachines",
               "apiVersion": "2019-03-01",
-              "name": "[variables('vmName')]",
+              "name": "[variables('VmName')]",
               "location": "[parameters('Location')]",
               "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Compute/availabilitySets/', variables('AVSetName'))]",
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkInterfaces/', variables('NicName'))]",
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]"
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Compute/availabilitySets/', variables('AVSetDatabase'))]",
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkInterfaces/', variables('NicName'))]"
               ],
               "properties": {
                 "availabilitySet": {
-                  "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Compute/availabilitySets/', variables('AVSetName'))]"
+                  "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Compute/availabilitySets/', variables('AVSetDatabase'))]"
                 },
                 "hardwareProfile": {
                   "vmSize": "Standard_E4_v3"
@@ -394,28 +394,28 @@
                   "imageReference": {
                     "publisher": "Canonical",
                     "offer": "UbuntuServer",
-                    "sku": "18.04-LTS",
+                    "sku": "16.04-LTS",
                     "version": "latest"
                   },
                   "osDisk": {
                     "osType": "Linux",
-                    "name": "[concat(variables('vmName'), variables('osDisk'))]",
+                    "name": "[variables('OsDisk')]",
                     "createOption": "FromImage",
                     "caching": "ReadWrite",
                     "managedDisk": {
-                      "storageAccountType": "StandardSSD_LRS"
+                      "storageAccountType": "Standard_LRS"
                     },
-                    "diskSizeGB": 127
+                    "diskSizeGB": 31
                   },
                   "dataDisks": [
                     {
                       "lun": 0,
-                      "name": "[concat(variables('vmName'), variables('dataDisk'))]",
+                      "name": "[variables('DataDisk')]",
                       "createOption": "Empty",
                       "caching": "ReadOnly",
                       "writeAcceleratorEnabled": false,
                       "managedDisk": {
-                        "storageAccountType": "StandardSSD_LRS"
+                        "storageAccountType": "Standard_LRS"
                       },
                       "diskSizeGB": 1023,
                       "toBeDetached": false
@@ -423,7 +423,7 @@
                   ]
                 },
                 "osProfile": {
-                  "computerName": "[variables('vmName')]",
+                  "computerName": "[variables('VmName')]",
                   "adminUsername": "[parameters('adminUsername')]",
                   "adminPassword": "[parameters('adminPassword')]",
                   "linuxConfiguration": {
@@ -438,49 +438,6 @@
                       "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkInterfaces/', variables('NicName'))]"
                     }
                   ]
-                },
-                "diagnosticsProfile": {
-                  "bootDiagnostics": {
-                    "enabled": true,
-                    "storageUri": "[concat('https://', variables('storageAccountName'), '.blob.core.windows.net/')]"
-                  }
-                }
-              }
-            },
-            {
-              "type": "Microsoft.Network/networkInterfaces",
-              "apiVersion": "2019-09-01",
-              "name": "[variables('NicName')]",
-              "location": "[parameters('Location')]",
-              "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/publicIPAddresses/', variables('PipName'))]",
-                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'), '/subnets/vm')]"
-              ],
-              "properties": {
-                "ipConfigurations": [
-                  {
-                    "name": "ipconfig1",
-                    "properties": {
-                      "privateIPAddress": "10.0.2.4",
-                      "privateIPAllocationMethod": "Dynamic",
-                      "publicIPAddress": {
-                        "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/publicIPAddresses/', variables('PipName'))]"
-                      },
-                      "subnet": {
-                        "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'), '/subnets/vm')]"
-                      },
-                      "primary": true,
-                      "privateIPAddressVersion": "IPv4"
-                    }
-                  }
-                ],
-                "dnsSettings": {
-                  "dnsServers": []
-                },
-                "enableAcceleratedNetworking": true,
-                "enableIPForwarding": false,
-                "networkSecurityGroup": {
-                  "id": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', variables('NsgVMName'))]"
                 }
               }
             },
@@ -490,16 +447,62 @@
               "name": "[concat(parameters('Name'), '/virtualNetwork')]",
               "location": "[parameters('Location')]",
               "dependsOn": [
-                "[concat(variables('ResourceIdPrefix'), 'Microsoft.Web/sites/', parameters('Name'))]"
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', parameters('Name'))]"
               ],
               "properties": {
-                "subnetResourceId": "[concat(variables('ResourceIdPrefix'), 'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]",
+                "subnetResourceId": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]",
                 "swiftSupported": true
               }
+            },
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2016-08-01",
+              "name": "[concat(variables('FuncName'), '/web')]",
+              "location": "[parameters('Location')]",
+              "dependsOn": [
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', variables('FuncName'))]"
+              ],
+              "properties": {
+                "subnetResourceId": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]",
+                "swiftSupported": true,
+                "vnetName": "[variables('VNetName')]"
+              }
             }
+            /*,
+            {
+              "type": "Microsoft.Web/sites/virtualNetworkConnections",
+              "apiVersion": "2016-08-01",
+              "name": "[concat(parameters('Name'), '/virtualNetwork')]",
+              "location": "[parameters('Location')]",
+              "dependsOn": [
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', parameters('Name'))]",
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]"
+              ],
+              "properties": {
+                "vnetResourceId": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]",
+                "resyncRequired": false,
+                "isSwift": false
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites/virtualNetworkConnections",
+              "apiVersion": "2016-08-01",
+              "name": "[concat(variables('FuncName'), '/web')]",
+              "location": "[parameters('Location')]",
+              "dependsOn": [
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Web/sites/', variables('FuncName'))]",
+                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]"
+              ],
+              "properties": {
+                "vnetResourceId": "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', variables('VNetName'),'/subnets/webapp')]",
+                "resyncRequired": false,
+                "isSwift": false
+              }
+            }
+            /**/
           ]
         }
       }
-    } 
+    }
   ]
 }
