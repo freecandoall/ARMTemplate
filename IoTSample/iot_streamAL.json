@@ -245,7 +245,29 @@
                 "eventsLateArrivalMaxDelayInSeconds": 5,
                 "inputs": [{
                     "name": "IoTinputStream",
-                    "properties": {}
+                    "properties": {
+                        "type": "Stream",
+                        "datasource": {
+                            "type": "Microsoft.Devices/IotHubs",
+                            "properties": {
+                                "iotHubNamespace": "[variables('iotHubName')]",
+                                "sharedAccessPolicyName": "[variables('iotHubKeyName')]",
+                                "sharedAccessPolicyKey": "[listkeys(variables('iotHubKeyResource'), variables('iotHubApiVersion')).primaryKey]",
+                                "endpoint": "messages/events",
+                                "consumerGroupName": "$Default"
+                            }
+                        },
+                        "compression": {
+                            "type": "None"
+                        },
+                        "partitionKey": "",
+                        "serialization": {
+                            "type": "Json",
+                            "properties": {
+                                "encoding": "UTF8"
+                            }
+                        }
+                    }
                 }],
                 "transformation": {
                     "name": "Transformation",
@@ -256,7 +278,32 @@
                   },
                 "outputs":[{
                         "name": "BlobOutput",
-                        "properties": {}
+                        "properties": {
+                            "datasource": {
+                                "type": "Microsoft.Storage/Blob",
+                                "properties": {
+                                    "blobPathPrefix": "",
+                                    "storageAccounts": [
+                                        {
+                                            "accountKey": "[listkeys(variables('storageId'), variables('storageVersion')).keys[0].value]",
+                                            "accountName": "[variables('storageAccountName')]"
+                                        }
+                                    ],
+                                    "container": "iotstorage",
+                                    "pathPattern": "",
+                                    "dateFormat": "yyyy/MM/dd",
+                                    "timeFormat": "HH",
+                                    "authenticationMode": "ConnectionString"
+                                }
+                            },
+                            "serialization": {
+                                "type": "Json",
+                                "properties": {
+                                    "encoding": "UTF8",
+                                    "format": "LineSeparated"
+                                }
+                            }
+                        }
                     }
                 ],
                 "dataLocale": "en-US",
