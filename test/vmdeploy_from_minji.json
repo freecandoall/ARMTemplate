@@ -1,0 +1,341 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vnetName": {
+            "defaultValue": "databricks-vnet",
+            "type": "String",
+            "metadata": {
+                "description": "The name of the virtual network to create."
+            }
+        },
+        "pricingTier": {
+            "defaultValue": "standard",
+            "type": "String",
+            "metadata": {
+                "description": "The pricing tier of workspace."
+            }
+        },
+        "privateSubnetCidr": {
+            "defaultValue": "10.179.0.0/18",
+            "type": "String",
+            "metadata": {
+                "description": "Cidr range for the private subnet."
+            }
+        },
+        "privateSubnetName": {
+            "defaultValue": "private-subnet",
+            "type": "String",
+            "metadata": {
+                "description": "The name of the private subnet to create."
+            }
+        },
+        "publicSubnetCidr": {
+            "defaultValue": "10.179.64.0/18",
+            "type": "String",
+            "metadata": {
+                "description": "Cidr range for the public subnet.."
+            }
+        },
+        "publicSubnetName": {
+            "defaultValue": "public-subnet",
+            "type": "String",
+            "metadata": {
+                "description": "The name of the public subnet to create."
+            }
+        },
+        "vnetCidr": {
+            "defaultValue": "10.179.0.0/16",
+            "type": "String",
+            "metadata": {
+                "description": "Cidr range for the vnet."
+            }
+        },
+        "workspaceName": {
+            "defaultValue": "wsbycloocustemplate",
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Azure Databricks workspace to create."
+            }
+        },
+        "nsgName": {
+            "defaultValue": "databricks-nsg",
+            "type": "String",
+            "metadata": {
+                "description": "The name of the network security group to create."
+            }
+        },
+        "adminUsername": {
+            "defaultValue" : "admin",
+            "type": "String",
+            "metadata": {
+                "description": "User name for the Virtual Machine."
+            }
+        },
+        "adminPasswordOrKey": {
+            "defaultValue" : "password123!",
+            "type": "SecureString",
+            "metadata": {
+                "description": "SSH Key or password for the Virtual Machine. SSH key is recommended."
+            }
+        },
+        "dnsLabelPrefix": {
+            "defaultValue" : "test",
+            "type": "String",
+            "metadata": {
+                "description": "Unique DNS Name for the Public IP used to access the Virtual Machine."
+            }
+        },
+        "ubuntuOSVersion": {
+            "defaultValue": "18.04-LTS",
+            "type": "String",
+            "metadata": {
+                "description": "The Ubuntu version for the VM. This will pick a fully patched image of this given Ubuntu version."
+            }
+        },
+        "Name": {
+            "type": "String",
+            "defaultValue": "bricksv1"
+        },
+        "location": {
+            "defaultValue": "koreacentral",
+            "type": "String",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "variables": {
+        "SubscriptionID": "[subscription().subscriptionID]",
+        "ResourceIdPrefix": "[concat('/subscriptions/', variables('SubscriptionID'), '/resourceGroups/', variables('resourceGroupName'), '/providers/')]",
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]",
+        "managedResourceGroupName": "[concat('databricks-rg-', parameters('workspaceName'), '-', uniqueString(parameters('workspaceName'), resourceGroup().id))]",
+        "managedResourceGroupId": "[concat(subscription().id, '/resourceGroups/', variables('managedResourceGroupName'))]",
+        "nsgId": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsgName'))]",
+        "storageAccountName": "[concat(uniquestring(resourceGroup().id), 'salinuxvm')]",
+        "imagePublisher": "Canonical",
+        "imageOffer": "UbuntuServer",
+        "nicName": "myVMNic",
+        "storageAccountType": "Standard_LRS",
+        "publicIPAddressName": "myPublicIP",
+        "publicIPAddressType": "Dynamic",
+        "vmName": "MyUbuntuVM",
+        "vmSize": "Standard_D2s_v3",
+        "ResourceGroupName": "[concat('rg-',parameters('Name'))]",
+        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('publicSubnetName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/resourceGroups",
+            "apiVersion": "2018-05-01",
+            "name": "[variables('resourceGroupName')]",
+            "location": "[parameters('Location')]",
+            "properties": {
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-05-01",
+            "name": "[concat(parameters('Name'),'Deployment')]",
+            "resourceGroup": "[variables('resourceGroupName')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "type": "Microsoft.Network/networkSecurityGroups",
+                            "apiVersion": "2019-06-01",
+                            "name": "[parameters('nsgName')]",
+                            "location": "[parameters('location')]"
+                        },
+                        {
+                            "type": "Microsoft.Storage/storageAccounts",
+                            "apiVersion": "2018-11-01",
+                            "name": "[variables('storageAccountName')]",
+                            "location": "[parameters('location')]",
+                            "sku": {
+                                "name": "[variables('storageAccountType')]"
+                            },
+                            "kind": "Storage",
+                            "properties": {
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Network/publicIPAddresses",
+                            "apiVersion": "2018-11-01",
+                            "name": "[variables('publicIPAddressName')]",
+                            "location": "[parameters('location')]",
+                            "properties": {
+                                "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
+                                "dnsSettings": {
+                                    "domainNameLabel": "[parameters('dnsLabelPrefix')]"
+                                }
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Network/virtualNetworks",
+                            "apiVersion": "2018-11-01",
+                            "name": "[parameters('vnetName')]",
+                            "location": "[parameters('location')]",
+                            "dependsOn": [
+                                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', parameters('nsgName'))]"
+                            ],
+                            "properties": {
+                                "addressSpace": {
+                                    "addressPrefixes": [
+                                        "[parameters('vnetCidr')]"
+                                    ]
+                                },
+                                "subnets": [
+                                    {
+                                        "name": "[parameters('publicSubnetName')]",
+                                        "properties": {
+                                            "addressPrefix": "[parameters('publicSubnetCidr')]",
+                                            "networkSecurityGroup": {
+                                                "id": "[variables('nsgId')]"
+                                            },
+                                            "delegations": [
+                                                {
+                                                    "name": "databricks-del-public",
+                                                    "properties": {
+                                                        "serviceName": "Microsoft.Databricks/workspaces"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "name": "[parameters('privateSubnetName')]",
+                                        "properties": {
+                                            "addressPrefix": "[parameters('privateSubnetCidr')]",
+                                            "networkSecurityGroup": {
+                                                "id": "[variables('nsgId')]"
+                                            },
+                                            "delegations": [
+                                                {
+                                                    "name": "databricks-del-private",
+                                                    "properties": {
+                                                        "serviceName": "Microsoft.Databricks/workspaces"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Databricks/workspaces",
+                            "apiVersion": "2018-04-01",
+                            "name": "[parameters('workspaceName')]",
+                            "location": "[parameters('location')]",
+                            "dependsOn": [
+                                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', parameters('vnetName'))]",
+                                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkSecurityGroups/', parameters('nsgName'))]" 
+                            ],
+                            "sku": {
+                                "name": "[parameters('pricingTier')]"
+                            },
+                            "properties": {
+                                "ManagedResourceGroupId": "[variables('managedResourceGroupId')]",
+                                "parameters": {
+                                    "customVirtualNetworkId": {
+                                        "value": "[variables('vnetId')]"
+                                    },
+                                    "customPublicSubnetName": {
+                                        "value": "[parameters('publicSubnetName')]"
+                                    },
+                                    "customPrivateSubnetName": {
+                                        "value": "[parameters('privateSubnetName')]"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Network/networkInterfaces",
+                            "apiVersion": "2018-11-01",
+                            "name": "[variables('nicName')]",
+                            "location": "[parameters('location')]",
+                            "dependsOn": ["[concat(variables('ResourceIdPrefix'),'Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
+                                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/virtualNetworks/', parameters('vnetName'))]"
+                            ],
+                            "properties": {
+                                "ipConfigurations": [
+                                    {
+                                        "name": "ipconfig1",
+                                        "properties": {
+                                            "privateIPAllocationMethod": "Dynamic",
+                                            "publicIPAddress": {
+                                                "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]"
+                                            },
+                                            "subnet": {
+                                                "id": "[variables('subnetRef')]"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Compute/virtualMachines",
+                            "apiVersion": "2018-10-01",
+                            "name": "[variables('vmName')]",
+                            "location": "[parameters('location')]",
+                            "dependsOn": ["[concat(variables('ResourceIdPrefix'),'Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+                            "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+                            ],
+                            "properties": {
+                                "hardwareProfile": {
+                                    "vmSize": "[variables('vmSize')]"
+                                },
+                                "osProfile": {
+                                    "computerName": "[variables('vmName')]",
+                                    "adminUsername": "[parameters('adminUsername')]",
+                                    "adminPassword": "[parameters('adminPasswordOrKey')]"
+                                },
+                                "storageProfile": {
+                                    "imageReference": {
+                                        "publisher": "[variables('imagePublisher')]",
+                                        "offer": "[variables('imageOffer')]",
+                                        "sku": "[parameters('ubuntuOSVersion')]",
+                                        "version": "latest"
+                                    },
+                                    "osDisk": {
+                                        "createOption": "FromImage"
+                                    },
+                                    "dataDisks": [
+                                        {
+                                            "diskSizeGB": 1023,
+                                            "lun": 0,
+                                            "createOption": "Empty"
+                                        }
+                                    ]
+                                },
+                                "networkProfile": {
+                                    "networkInterfaces": [
+                                        {
+                                            "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+                                        }
+                                    ]
+                                },
+                                "diagnosticsProfile": {
+                                    "bootDiagnostics": {
+                                        "enabled": true,
+                                        "storageUri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')), '2016-01-01').primaryEndpoints.blob)]"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
