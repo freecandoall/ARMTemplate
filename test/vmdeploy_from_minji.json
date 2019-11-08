@@ -94,8 +94,8 @@
             }
         },
         "Name": {
-            "type": "String",
-            "defaultValue": "bricksv1"
+            "type": "String"
+            //"defaultValue": "bricksv1"
         },
         "location": {
             "defaultValue": "koreacentral",
@@ -108,21 +108,21 @@
     "variables": {
         "SubscriptionID": "[subscription().subscriptionID]",
         "ResourceIdPrefix": "[concat('/subscriptions/', variables('SubscriptionID'), '/resourceGroups/', variables('resourceGroupName'), '/providers/')]",
-        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]",
-        "managedResourceGroupName": "[concat('databricks-rg-', parameters('workspaceName'), '-', uniqueString(parameters('workspaceName'), resourceGroup().id))]",
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks/', parameters('vnetName'))]",
+        "managedResourceGroupName": "[concat('databricks-rg-', parameters('workspaceName'), '-', uniqueString(parameters('workspaceName')))]",
         "managedResourceGroupId": "[concat(subscription().id, '/resourceGroups/', variables('managedResourceGroupName'))]",
         "nsgId": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsgName'))]",
-        "storageAccountName": "[concat(uniquestring(resourceGroup().id), 'salinuxvm')]",
+        "storageAccountName": "[concat(parameters('Name'), 'salinuxvm')]",
         "imagePublisher": "Canonical",
         "imageOffer": "UbuntuServer",
         "nicName": "myVMNic",
         "storageAccountType": "Standard_LRS",
-        "publicIPAddressName": "myPublicIP",
+        "publicIPAddressName": "[concat('pip-', parameters('Name'))]",
         "publicIPAddressType": "Dynamic",
         "vmName": "MyUbuntuVM",
         "vmSize": "Standard_D2s_v3",
         "ResourceGroupName": "[concat('rg-',parameters('Name'))]",
-        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('publicSubnetName'))]"
+        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/', parameters('vnetName'), '/subnets/', parameters('publicSubnetName'))]"
     },
     "resources": [
         {
@@ -130,8 +130,7 @@
             "apiVersion": "2018-05-01",
             "name": "[variables('resourceGroupName')]",
             "location": "[parameters('Location')]",
-            "properties": {
-            }
+            "properties": {}
         },
         {
             "type": "Microsoft.Resources/deployments",
@@ -173,10 +172,7 @@
                             "name": "[variables('publicIPAddressName')]",
                             "location": "[parameters('location')]",
                             "properties": {
-                                "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
-                                "dnsSettings": {
-                                    "domainNameLabel": "[parameters('dnsLabelPrefix')]"
-                                }
+                                "publicIPAllocationMethod": "[variables('publicIPAddressType')]"
                             }
                         },
                         {
@@ -190,7 +186,7 @@
                             "properties": {
                                 "addressSpace": {
                                     "addressPrefixes": [
-                                        "[parameters('vnetCidr')]"
+                                        "10.0.0.0/16"
                                     ]
                                 },
                                 "subnets": [
@@ -288,8 +284,9 @@
                             "apiVersion": "2018-10-01",
                             "name": "[variables('vmName')]",
                             "location": "[parameters('location')]",
-                            "dependsOn": ["[concat(variables('ResourceIdPrefix'),'Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
-                            "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+                            "dependsOn": [
+                                "[concat(variables('ResourceIdPrefix'),'Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+                                "[concat(variables('ResourceIdPrefix'),'Microsoft.Network/networkInterfaces/', variables('nicName'))]"
                             ],
                             "properties": {
                                 "hardwareProfile": {
@@ -324,12 +321,6 @@
                                             "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
                                         }
                                     ]
-                                },
-                                "diagnosticsProfile": {
-                                    "bootDiagnostics": {
-                                        "enabled": true,
-                                        "storageUri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')), '2016-01-01').primaryEndpoints.blob)]"
-                                    }
                                 }
                             }
                         }
