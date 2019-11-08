@@ -18,13 +18,17 @@
     "variables": {
         "iotHubApiVersion": "2018-04-01",
         "sqlServerName": "[concat('sql-', parameters('InputName'), uniqueString(resourceGroup().id))]",
-        "databaseName": "[concat('cdb-', parameters('InputName'), uniqueString(resourceGroup().id))]",
+        "databaseName": "[concat('sdb-', parameters('InputName'))]",
         "storageAccountName": "[concat('sa', parameters('InputName'), uniqueString(resourceGroup().id))]",
+        "storageVersion": "2019-04-01",
+        "storageId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
         "iotHubName": "[concat('iot-', parameters('InputName'), uniqueString(resourceGroup().id))]",
         "iotHubKeyName": "iothubowner",
         "iotHubKeyResource": "[resourceId('Microsoft.Devices/Iothubs/Iothubkeys', variables('iotHubName'), variables('iotHubKeyName'))]",
         "streamALName": "[concat('sal-', parameters('InputName'), uniqueString(resourceGroup().id))]",
-        "cosmosName": "[concat('cdb-', parameters('InputName'), uniqueString(resourceGroup().id))]"        
+        "cosmosName": "[concat('cdb-', parameters('InputName'), uniqueString(resourceGroup().id))]",
+        "cosmosVersion": "2019-08-01",
+        "cosmosId": "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosName'))]"
     },
     "resources": [
         {
@@ -97,7 +101,7 @@
         },
         {
             "type": "Microsoft.DocumentDB/databaseAccounts",
-            "apiVersion": "2019-08-01",
+            "apiVersion": "[variables('cosmosVersion')]",
             "name": "[variables('cosmosName')]",
             "location": "[resourceGroup().location]",
             "tags": {
@@ -133,7 +137,7 @@
             "apiVersion": "2014-04-01-preview",
             "dependsOn": [],
             "tags": {
-              "displayName": "sql-server"
+              "displayName": "[variables('sqlServerName')]"
             },
             "properties": {
               "administratorLogin": "[parameters('sqlServerAdminLogin')]",
@@ -176,7 +180,7 @@
           },
         {
             "type": "Microsoft.Storage/storageAccounts",
-            "apiVersion": "2019-04-01",
+            "apiVersion": "[variables('storageVersion')]",
             "name": "[variables('storageAccountName')]",
             "location": "[resourceGroup().location]",
             "sku": {
@@ -208,7 +212,7 @@
         },
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices",
-            "apiVersion": "2019-04-01",
+            "apiVersion": "[variables('storageVersion')]",
             "name": "[concat(variables('storageAccountName'), '/default')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
@@ -241,94 +245,18 @@
                 "eventsLateArrivalMaxDelayInSeconds": 5,
                 "inputs": [{
                     "name": "IoTinputStream",
-                    "properties": {
-                        "type": "Stream",
-                        "datasource": {
-                            "type": "Microsoft.Devices/IotHubs",
-                            "properties": {
-                                "iotHubNamespace": "[variables('iotHubName')]",
-                                "sharedAccessPolicyName": "[variables('iotHubKeyName')]",
-                                "sharedAccessPolicyKey": "[listkeys(variables('iotHubKeyResource'), variables('iotHubApiVersion')).primaryKey]",
-                                "endpoint": "messages/events",
-                                "consumerGroupName": "$Default"
-                            }
-                        },
-                        "compression": {
-                            "type": "None"
-                        },
-                        "partitionKey": "",
-                        "serialization": {
-                            "type": "Json",
-                            "properties": {
-                                "encoding": "UTF8"
-                            }
-                        }
-                    }
+                    "properties": {}
                 }],
                 "transformation": {
                     "name": "Transformation",
                     "properties": {
                       "streamingUnits": 1,
-                      "query": "SELECT\r\n    *\r\nINTO\r\n    [BlobOutput]\r\n    [CosmosOutput]\r\n    [SQLDBOutput]\r\nFROM\r\n    [IoTinputStream]\r\n"
+                      "query": "SELECT\r\n    *\r\nINTO\r\n    [BlobOutput]\r\nFROM\r\n    [IoTinputStream]\r\n"
                     }
                   },
                 "outputs":[{
                         "name": "BlobOutput",
-                        "properties": {
-                            "datasource": {
-                                "type": "Microsoft.Storage/Blob",
-                                "properties": {
-                                    "blobPathPrefix": "",
-                                    "storageAccounts": [
-                                        {
-                                            "accountName": "[variables('storageAccountName')]"
-                                        }
-                                    ],
-                                    "container": "iotstorage",
-                                    "pathPattern": "",
-                                    "dateFormat": "yyyy/MM/dd",
-                                    "timeFormat": "HH",
-                                    "authenticationMode": "ConnectionString"
-                                }
-                            },
-                            "serialization": {
-                                "type": "Json",
-                                "properties": {
-                                    "encoding": "UTF8",
-                                    "format": "LineSeparated"
-                                }
-                            }
-                        }
-                    },
-                    {
-                        "name": "CosmosOutput",
-                        "properties": {
-                            "datasource": {
-                                "type": "Microsoft.Storage/DocumentDB",
-                                "properties": {
-                                    "accountId": "[variables('cosmosName')]",
-                                    "accountKey": null,
-                                    "database": "IoTCosmos",
-                                    "collectionNamePattern": "IoTContainer"
-                                }
-                            }
-                        }
-                    },
-                    {
-                        "name": "SQLDBOutput",
-                        "properties": {
-                            "datasource": {
-                                "type": "Microsoft.Sql/Server/Database",
-                                "properties": {
-                                    "maxWriterCount": 1,
-                                    "maxBatchCount": 10000,
-                                    "table": "IOTDB",
-                                    "server": "sqliotserver.database.windows.net",
-                                    "database": "IoTSQLDB",
-                                    "user": "sadmin"
-                                }
-                            }
-                        }
+                        "properties": {}
                     }
                 ],
                 "dataLocale": "en-US",
