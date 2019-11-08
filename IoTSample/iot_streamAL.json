@@ -16,17 +16,20 @@
         }
     },
     "variables": {
+        "iotHubApiVersion": "2018-04-01",
         "sqlServerName": "[concat('sql-', parameters('InputName'), uniqueString(resourceGroup().id))]",
         "databaseName": "[concat('cdb-', parameters('InputName'), uniqueString(resourceGroup().id))]",
         "storageAccountName": "[concat('sa', parameters('InputName'), uniqueString(resourceGroup().id))]",
         "iotHubName": "[concat('iot-', parameters('InputName'), uniqueString(resourceGroup().id))]",
+        "iotHubKeyName": "iothubowner",
+        "iotHubKeyResource": "[resourceId('Microsoft.Devices/Iothubs/Iothubkeys', variables('iotHubName'), variables('iotHubKeyName'))]",
         "streamALName": "[concat('sal-', parameters('InputName'), uniqueString(resourceGroup().id))]",
         "cosmosName": "[concat('cdb-', parameters('InputName'), uniqueString(resourceGroup().id))]"        
     },
     "resources": [
         {
             "type": "Microsoft.Devices/IotHubs",
-            "apiVersion": "2018-04-01",
+            "apiVersion": "[variables('iotHubApiVersion')]",
             "name": "[variables('iotHubName')]",
             "location": "[resourceGroup().location]",
             "sku": {
@@ -221,9 +224,12 @@
         },
         {
             "type": "Microsoft.StreamAnalytics/streamingjobs",
-            "apiVersion": "2016-03-01",
+            "apiVersion": "2019-06-01",
             "name": "[variables('streamALName')]",
             "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Devices/IotHubs', variables('iotHubName'))]"
+              ],
             "properties": {
                 "sku": {
                     "name": "Standard"
@@ -233,112 +239,100 @@
                 "outputErrorPolicy": "Stop",
                 "eventsOutOfOrderMaxDelayInSeconds": 0,
                 "eventsLateArrivalMaxDelayInSeconds": 5,
-                "inputs": [],
+                "inputs": [{
+                    "name": "IoTinputStream",
+                    "properties": {
+                        "type": "Stream",
+                        "datasource": {
+                            "type": "Microsoft.Devices/IotHubs",
+                            "properties": {
+                                "iotHubNamespace": "[variables('iotHubName')]",
+                                "sharedAccessPolicyName": "[variables('iotHubKeyName')]",
+                                "sharedAccessPolicyKey": "[listkeys(variables('iotHubKeyResource'), variables('iotHubApiVersion')).primaryKey]",
+                                "endpoint": "messages/events",
+                                "consumerGroupName": "$Default"
+                            }
+                        },
+                        "compression": {
+                            "type": "None"
+                        },
+                        "partitionKey": "",
+                        "serialization": {
+                            "type": "Json",
+                            "properties": {
+                                "encoding": "UTF8"
+                            }
+                        }
+                    }
+                }],
+                "transformation": {
+                    "name": "Transformation",
+                    "properties": {
+                      "streamingUnits": 1,
+                      "query": "SELECT\r\n    *\r\nINTO\r\n    [BlobOutput]\r\n    [CosmosOutput]\r\n    [SQLDBOutput]\r\nFROM\r\n    [IoTinputStream]\r\n"
+                    }
+                  },
+                "outputs":[{
+                        "name": "BlobOutput",
+                        "properties": {
+                            "datasource": {
+                                "type": "Microsoft.Storage/Blob",
+                                "properties": {
+                                    "blobPathPrefix": "",
+                                    "storageAccounts": [
+                                        {
+                                            "accountName": "[variables('storageAccountName')]"
+                                        }
+                                    ],
+                                    "container": "iotstorage",
+                                    "pathPattern": "",
+                                    "dateFormat": "yyyy/MM/dd",
+                                    "timeFormat": "HH",
+                                    "authenticationMode": "ConnectionString"
+                                }
+                            },
+                            "serialization": {
+                                "type": "Json",
+                                "properties": {
+                                    "encoding": "UTF8",
+                                    "format": "LineSeparated"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "CosmosOutput",
+                        "properties": {
+                            "datasource": {
+                                "type": "Microsoft.Storage/DocumentDB",
+                                "properties": {
+                                    "accountId": "[variables('cosmosName')]",
+                                    "accountKey": null,
+                                    "database": "IoTCosmos",
+                                    "collectionNamePattern": "IoTContainer"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "SQLDBOutput",
+                        "properties": {
+                            "datasource": {
+                                "type": "Microsoft.Sql/Server/Database",
+                                "properties": {
+                                    "maxWriterCount": 1,
+                                    "maxBatchCount": 10000,
+                                    "table": "IOTDB",
+                                    "server": "sqliotserver.database.windows.net",
+                                    "database": "IoTSQLDB",
+                                    "user": "sadmin"
+                                }
+                            }
+                        }
+                    }
+                ],
                 "dataLocale": "en-US",
                 "compatibilityLevel": "1.1"
-            }
-        },
-        {
-            "type": "Microsoft.StreamAnalytics/streamingjobs/inputs",
-            "apiVersion": "2016-03-01",
-            "name": "[concat(variables('streamALName'), '/IoTinputStream')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.StreamAnalytics/streamingjobs', variables('streamALName'))]"
-            ],
-            "properties": {
-                "type": "Stream",
-                "datasource": {
-                    "type": "Microsoft.Devices/IotHubs",
-                    "properties": {
-                        "iotHubNamespace": "[variables('iotHubName')]",
-                        "sharedAccessPolicyName": "iothubowner",
-                        "endpoint": "messages/events",
-                        "consumerGroupName": "$Default"
-                    }
-                },
-                "compression": {
-                    "type": "None"
-                },
-                "partitionKey": "",
-                "serialization": {
-                    "type": "Json",
-                    "properties": {
-                        "encoding": "UTF8"
-                    }
-                }
-            }
-        },
-        {
-            "type": "Microsoft.StreamAnalytics/streamingjobs/outputs",
-            "apiVersion": "2016-03-01",
-            "name": "[concat(variables('streamALName'), '/BlobOutput')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.StreamAnalytics/streamingjobs', variables('streamALName'))]"
-            ],
-            "properties": {
-                "datasource": {
-                    "type": "Microsoft.Storage/Blob",
-                    "properties": {
-                        "blobPathPrefix": "",
-                        "storageAccounts": [
-                            {
-                                "accountName": "[variables('storageAccountName')]"
-                            }
-                        ],
-                        "container": "iotstorage",
-                        "pathPattern": "",
-                        "dateFormat": "yyyy/MM/dd",
-                        "timeFormat": "HH",
-                        "authenticationMode": "ConnectionString"
-                    }
-                },
-                "serialization": {
-                    "type": "Json",
-                    "properties": {
-                        "encoding": "UTF8",
-                        "format": "LineSeparated"
-                    }
-                }
-            }
-        },
-        {
-            "type": "Microsoft.StreamAnalytics/streamingjobs/outputs",
-            "apiVersion": "2016-03-01",
-            "name": "[concat(variables('streamALName'), '/CosmosOutput')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.StreamAnalytics/streamingjobs', variables('streamALName'))]"
-            ],
-            "properties": {
-                "datasource": {
-                    "type": "Microsoft.Storage/DocumentDB",
-                    "properties": {
-                        "accountId": "[variables('cosmosName')]",
-                        "accountKey": null,
-                        "database": "IoTCosmos",
-                        "collectionNamePattern": "IoTContainer"
-                    }
-                }
-            }
-        },
-        {
-            "type": "Microsoft.StreamAnalytics/streamingjobs/outputs",
-            "apiVersion": "2016-03-01",
-            "name": "[concat(variables('streamALName'), '/SQLDBOutput')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.StreamAnalytics/streamingjobs', variables('streamALName'))]"
-            ],
-            "properties": {
-                "datasource": {
-                    "type": "Microsoft.Sql/Server/Database",
-                    "properties": {
-                        "maxWriterCount": 1,
-                        "maxBatchCount": 10000,
-                        "table": "IOTDB",
-                        "server": "sqliotserver.database.windows.net",
-                        "database": "IoTSQLDB",
-                        "user": "sadmin"
-                    }
-                }
             }
         },
         {
