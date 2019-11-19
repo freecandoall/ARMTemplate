@@ -27,7 +27,7 @@
         "IsLinux": "false",
         "topicName": "[concat('tp-', parameters('InputName'))]",
         "topicSubName": "[concat('tpsub-', parameters('InputName'))]",
-        "topicSubUrl": ""
+        "topicSubUrl": "https://github.com/Azure-Samples/azure-event-grid-viewer.git"
     },
     "resources": [
         {
@@ -179,24 +179,6 @@
             "type": "Microsoft.EventGrid/topics",
             "location": "[resourceGroup().location]",
             "apiVersion": "2018-01-01"
-        },
-        {
-            "name": "[concat(variables('topicName'), '/Microsoft.EventGrid/', variables('topicSubName'))]",
-            "type": "Microsoft.EventGrid/topics/providers/eventSubscriptions",
-            "location": "[resourceGroup().location]",
-            "apiVersion": "2018-01-01",
-            "properties": {
-                
-                },
-                "filter": {
-                    "includedEventTypes": [
-                        "All"
-                    ]
-                }
-            },
-            "dependsOn": [
-                "[variables('topicName')]"
-            ]
         }
     ]
 }
