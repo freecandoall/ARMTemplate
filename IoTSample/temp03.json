@@ -27,7 +27,8 @@
         "IsLinux": "false",
         "topicName": "[concat('tp-', parameters('InputName'))]",
         "topicSubName": "[concat('tpsub-', parameters('InputName'))]",
-        "topicSubUrl": "https://github.com/Azure-Samples/azure-event-grid-viewer.git"
+        "topicSubUrl": "https://github.com/Azure-Samples/azure-event-grid-viewer.git",
+        "dpsName": "[concat('dps-', parameters('InputName'))]"
     },
     "resources": [
         {
@@ -179,6 +180,22 @@
             "type": "Microsoft.EventGrid/topics",
             "location": "[resourceGroup().location]",
             "apiVersion": "2018-01-01"
-        }
+        },
+        {
+          "type": "Microsoft.Devices/provisioningServices",
+          "apiVersion": "2018-01-22",
+          "name": "[variables('dpsName')]",
+          "location": "eastasia",
+          "sku": {
+              "name": "S1",
+              "tier": "Standard",
+              "capacity": 1
+          },
+          "properties": {
+              "state": "Active",
+              "iotHubs": [],
+              "allocationPolicy": "Hashed"
+          }
+      }
     ]
 }
