@@ -1,0 +1,175 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "InputName": {
+            "type": "String"
+        },
+        "sqlServerAdminLogin": {
+            "type": "string",
+            "minLength": 1
+        },
+        "sqlServerAdminLoginPassword": {
+            "type": "securestring"
+        }
+    },
+    "variables": {
+        "iotHubApiVersion": "2018-04-01",
+        "sqlServerName": "[concat('sql-', parameters('InputName'), uniqueString(resourceGroup().id))]",
+        "databaseName": "[concat('sdb-', parameters('InputName'))]",
+        "iotHubName": "[concat('iot-', parameters('InputName'), uniqueString(resourceGroup().id))]",
+        "iotHubKeyName": "iothubowner",
+        "iotHubKeyResource": "[resourceId('Microsoft.Devices/Iothubs/Iothubkeys', variables('iotHubName'), variables('iotHubKeyName'))]",
+        "AppServicePlanSku": "S1",
+        "AppServicePlanNodeCount": "1",
+        "PlanName": "[concat(parameters('InputName'),'-plan')]",
+        "FuncName": "[concat(parameters('InputName'),'func')]",
+        "IsLinux": "false"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Devices/IotHubs",
+            "apiVersion": "[variables('iotHubApiVersion')]",
+            "name": "[variables('iotHubName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "S1",
+                "tier": "Standard",
+                "capacity": 1
+            },
+            "properties": {
+                "operationsMonitoringProperties": {
+                    "events": {
+                        "None": "None",
+                        "Connections": "None",
+                        "DeviceTelemetry": "None",
+                        "C2DCommands": "None",
+                        "DeviceIdentityOperations": "None",
+                        "FileUploadOperations": "None",
+                        "Routes": "None"
+                    }
+                },
+                "ipFilterRules": [],
+                "routing": {
+                    "endpoints": {
+                        "serviceBusQueues": [],
+                        "serviceBusTopics": [],
+                        "eventHubs": [],
+                        "storageContainers": []
+                    },
+                    "routes": [],
+                    "fallbackRoute": {
+                        "name": "$fallback",
+                        "source": "DeviceMessages",
+                        "condition": "true",
+                        "endpointNames": [
+                            "events"
+                        ],
+                        "isEnabled": true
+                    }
+                },
+                "storageEndpoints": {
+                    "$default": {
+                        "sasTtlAsIso8601": "PT1H",
+                        "connectionString": "",
+                        "containerName": ""
+                    }
+                },
+                "messagingEndpoints": {
+                    "fileNotifications": {
+                        "lockDurationAsIso8601": "PT1M",
+                        "ttlAsIso8601": "PT1H",
+                        "maxDeliveryCount": 10
+                    }
+                },
+                "enableFileUploadNotifications": false,
+                "cloudToDevice": {
+                    "maxDeliveryCount": 10,
+                    "defaultTtlAsIso8601": "PT1H",
+                    "feedback": {
+                        "lockDurationAsIso8601": "PT1M",
+                        "ttlAsIso8601": "PT1H",
+                        "maxDeliveryCount": 10
+                    }
+                },
+                "features": "None"
+            }
+        },
+        {
+            "name": "[variables('sqlServerName')]",
+            "type": "Microsoft.Sql/servers",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2014-04-01-preview",
+            "dependsOn": [],
+            "tags": {
+              "displayName": "[variables('sqlServerName')]"
+            },
+            "properties": {
+              "administratorLogin": "[parameters('sqlServerAdminLogin')]",
+              "administratorLoginPassword": "[parameters('sqlServerAdminLoginPassword')]",
+              "version": "12.0"
+            },
+            "resources": [
+              {
+                "name": "AllowAllWindowsAzureIps",
+                "type": "firewallrules",
+                "location": "[resourceGroup().location]",
+                "apiVersion": "2014-04-01-preview",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+                ],
+                "properties": {
+                  "startIpAddress": "0.0.0.0",
+                  "endIpAddress": "0.0.0.0"
+                }
+              },
+              {
+                "name": "[variables('databaseName')]",
+                "type": "databases",
+                "location": "[resourceGroup().location]",
+                "apiVersion": "2014-04-01-preview",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+                ],
+                "tags": {
+                  "displayName": "databaseName"
+                },
+                "properties": {
+                  "collation": "SQL_Latin1_General_CP1_CI_AS",
+                  "edition": "Standard",
+                  "maxSizeBytes": "1073741824",
+                  "requestedServiceObjectiveName": "S0"
+                }
+              }
+            ]
+        },
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2016-09-01",
+            "name": "[variables('PlanName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+              "name": "[variables('AppServicePlanSku')]",
+              "capacity": "[variables('AppServicePlanNodeCount')]"
+            },
+            "kind": "app",
+            "properties": {
+              "reserved": "[variables('IsLinux')]"
+            }
+          },
+          {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2016-08-01",
+            "name": "[variables('FuncName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+              "[resourceId('Microsoft.Web/serverfarms', variables('PlanName'))]"
+            ],
+            "kind": "functionapp",
+            "properties": {
+              "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('PlanName'))]"
+            },
+            "resources": []
+          }
+    ]
+}
