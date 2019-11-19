@@ -19,6 +19,9 @@
         "iotHubApiVersion": "2018-04-01",
         "sqlServerName": "[concat('sql-', parameters('InputName'), uniqueString(resourceGroup().id))]",
         "databaseName": "[concat('sdb-', parameters('InputName'))]",
+        "storageAccountName": "[concat('sa', parameters('InputName'), uniqueString(resourceGroup().id))]",
+        "storageVersion": "2019-04-01",
+        "storageId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
         "iotHubName": "[concat('iot-', parameters('InputName'), uniqueString(resourceGroup().id))]",
         "iotHubKeyName": "iothubowner",
         "iotHubKeyResource": "[resourceId('Microsoft.Devices/Iothubs/Iothubkeys', variables('iotHubName'), variables('iotHubKeyName'))]",
@@ -142,6 +145,54 @@
             ]
         },
         {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "[variables('storageVersion')]",
+            "name": "[variables('storageAccountName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "accessTier": "Hot"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "[variables('storageVersion')]",
+            "name": "[concat(variables('storageAccountName'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
             "type": "Microsoft.StreamAnalytics/streamingjobs",
             "apiVersion": "2019-06-01",
             "name": "[variables('streamALName')]",
@@ -188,32 +239,38 @@
                     "name": "Transformation",
                     "properties": {
                       "streamingUnits": 1,
-                      "query": "SELECT\r\n    *\r\nINTO\r\n    [SQLOutput]\r\nFROM\r\n    [IoTinputStream]\r\n"
+                      "query": "SELECT\r\n    *\r\nINTO\r\n    [BlobOutput]\r\nFROM\r\n    [IoTinputStream]\r\n"
                     }
                   },
                 "outputs":[{
-                        "name": "SQLOutput",
-                        "properties": {
-                            "datasource": {
-                                "type": "Microsoft.Sql/servers/Database",
-                                "properties": {
-                                    "maxWriterCount": 1,
-                                    "maxBatchCount": 10000,
-                                    "table": "IOTDB",
-                                    "server": "sqliotserver.database.windows.net",
-                                    "database": "[variables('databaseName')]",
-                                    "user": "[parameters('sqlServerAdminLogin')]"
-                                  }
-                            },
-                            "serialization": {
-                                "type": "Json",
-                                "properties": {
-                                    "encoding": "UTF8",
-                                    "format": "LineSeparated"
-                                }
+                    "name": "BlobOutput",
+                    "properties": {
+                        "datasource": {
+                            "type": "Microsoft.Storage/Blob",
+                            "properties": {
+                                "blobPathPrefix": "",
+                                "storageAccounts": [
+                                    {
+                                        "accountKey": "[listkeys(variables('storageId'), variables('storageVersion')).keys[0].value]",
+                                        "accountName": "[variables('storageAccountName')]"
+                                    }
+                                ],
+                                "container": "iotstorage",
+                                "pathPattern": "",
+                                "dateFormat": "yyyy/MM/dd",
+                                "timeFormat": "HH",
+                                "authenticationMode": "ConnectionString"
+                            }
+                        },
+                        "serialization": {
+                            "type": "Json",
+                            "properties": {
+                                "encoding": "UTF8",
+                                "format": "LineSeparated"
                             }
                         }
                     }
+                }
                 ],
                 "dataLocale": "en-US",
                 "compatibilityLevel": "1.1"
